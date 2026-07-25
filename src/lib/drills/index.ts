@@ -1,9 +1,21 @@
-import type { Drill } from '../types'
+import type { Drill, Phase } from '../types'
 import { ATTACKING } from './attacking'
 import { DEFENDING } from './defending'
 import { PASSING } from './passing'
+import { ATTACKING_PHASES } from './phases-attacking'
+import { DEFENDING_PHASES } from './phases-defending'
+import { PASSING_PHASES } from './phases-passing'
 
-export const DRILLS: Drill[] = [...ATTACKING, ...DEFENDING, ...PASSING]
+const PHASES: Record<string, Phase[]> = {
+  ...ATTACKING_PHASES,
+  ...DEFENDING_PHASES,
+  ...PASSING_PHASES,
+}
+
+/** Drill definitions with their coaching phases attached. */
+export const DRILLS: Drill[] = [...ATTACKING, ...DEFENDING, ...PASSING].map(
+  (d) => ({ ...d, phases: PHASES[d.id] }),
+)
 
 export type Category = Drill['category']
 
