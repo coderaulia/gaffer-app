@@ -332,80 +332,199 @@ export interface BallState {
   carrier: string | null
 }
 
+export interface Strike {
+  t: number
+  kind: StrikeKind
+  playerId: string
+}
+
+/** Realistic delivery speeds in m/s, by type of strike. */
+const DELIVERY_SPEED: Record<StrikeKind, number> = {
+  layoff: 9,
+  pass: 14,
+  cross: 16,
+  header: 11,
+  shoot: 22,
+}
+
+interface Delivery {
+  /** When the ball actually leaves the foot. */
+  t0: number
+  /** When it reaches the target. */
+  t1: number
+  from: { x: number; y: number; z: number }
+  to: { x: number; y: number; z: number }
+  kind: StrikeKind
+  /** Player who struck it, when one could be matched. */
+  by: string | null
+  dist: number
+  /** Apex of the arc above the straight line, metres. */
+  loft: number
+}
+
 /**
- * Ball flight. Passes travel at constant speed with a loft that scales with
- * distance; when the ball is with a dribbler it is offset to their outside
- * foot and given a small touch rhythm rather than gliding along a line.
+ * Ball flight.
+ *
+ * Authored ball keyframes describe *where* the ball goes; this retimes *when*
+ * it goes there, because hand-authored times drifted badly in two ways: the
+ * ball left up to 1.2s before the passer's foot swung, and short segments
+ * gave deliveries of over 100 m/s.
+ *
+ * Each delivery is therefore snapped to the strike that produced it and given
+ * a flight time derived from distance and delivery type. Between deliveries
+ * the ball rests where it arrived, or sticks to a dribbler's outside foot.
  */
 export class BallTrack {
-  constructor(
-    private readonly path: BallKeyframe[],
-    private readonly duration: number,
-  ) {}
+  readonly deliveries: Delivery[] = []
+  private readonly rest: { x: number; y: number; z: number }
+
+  constructor(path: BallKeyframe[], strikes: Strike[]) {
+    this.rest = path.length
+      ? { x: path[0].x, y: path[0].y ?? BALL_RADIUS, z: path[0].z }
+      : { x: 0, y: BALL_RADIUS, z: 0 }
+
+    // 1. Collapse the authored path into the segments that actually travel.
+    const raw: {
+      t: number
+      from: { x: number; y: number; z: number }
+      to: { x: number; y: number; z: number }
+      dist: number
+      authoredLoft: boolean
+    }[] = []
+
+    for (let i = 0; i < path.length - 1; i++) {
+      const a = path[i]
+      const b = path[i + 1]
+      const dist = Math.hypot(b.x - a.x, b.z - a.z)
+      // Short hops are the ball drifting with a carrier, not a delivery.
+      if (dist < 2) continue
+      raw.push({
+        t: a.t,
+        from: { x: a.x, y: a.y ?? BALL_RADIUS, z: a.z },
+        to: { x: b.x, y: b.y ?? BALL_RADIUS, z: b.z },
+        dist,
+        authoredLoft: a.y !== undefined || b.y !== undefined,
+      })
+    }
+
+    // 2. Match each segment to the strike that caused it and retime.
+    const used = new Set<number>()
+    let previousArrival = 0
+
+    for (const seg of raw) {
+      let best = -1
+      let bestGap = 1.6
+      strikes.forEach((s, i) => {
+        if (used.has(i)) return
+        const gap = Math.abs(s.t - seg.t)
+        if (gap < bestGap) {
+          bestGap = gap
+          best = i
+        }
+      })
+
+      const strike = best >= 0 ? strikes[best] : null
+      if (best >= 0) used.add(best)
+
+      // An unmatched short segment is carrying, not a delivery.
+      if (!strike && seg.dist < 5) continue
+
+      const kind = strike?.kind ?? 'pass'
+      const flight = clamp(seg.dist / DELIVERY_SPEED[kind], 0.16, 2.4)
+
+      // The ball leaves when the foot goes through it, never before.
+      let t0 = strike ? strike.t : seg.t
+      // Deliveries cannot overlap: leave a beat for the receiver to control.
+      if (t0 < previousArrival + 0.12) t0 = previousArrival + 0.12
+      // A delivery always gets its full flight. If that runs past the
+      // authored duration the drill is extended to cover it (see
+      // DrillSim.duration) rather than the ball being teleported or the
+      // kick being started early.
+      const t1 = t0 + flight
+
+      const loft = seg.authoredLoft
+        ? 0
+        : seg.dist > 11
+          ? Math.min(seg.dist * 0.075, 2.6)
+          : 0
+
+      this.deliveries.push({
+        t0,
+        t1,
+        from: seg.from,
+        to: seg.to,
+        kind,
+        by: strike?.playerId ?? null,
+        dist: seg.dist,
+        loft,
+      })
+      previousArrival = t1
+    }
+  }
 
   sample(t: number, carriers: CarrierLookup, out: BallState): BallState {
-    const path = this.path
     out.carrier = null
-    if (path.length === 0) {
-      out.x = 0
-      out.y = BALL_RADIUS
-      out.z = 0
-      return out
-    }
-    if (path.length === 1 || t <= path[0].t) {
-      out.x = path[0].x
-      out.y = path[0].y ?? BALL_RADIUS
-      out.z = path[0].z
-      return out
-    }
-    const last = path[path.length - 1]
-    if (t >= last.t) {
-      out.x = last.x
-      out.y = last.y ?? BALL_RADIUS
-      out.z = last.z
+
+    const d = this.deliveries
+    if (d.length === 0) {
+      out.x = this.rest.x
+      out.y = this.rest.y
+      out.z = this.rest.z
+      this.stickToCarrier(carriers, out)
       return out
     }
 
-    let i = 0
-    while (i < path.length - 2 && path[i + 1].t <= t) i++
-    const a = path[i]
-    const b = path[i + 1]
-    const span = Math.max(b.t - a.t, 1e-4)
-    const k = (t - a.t) / span
-
-    out.x = lerp(a.x, b.x, k)
-    out.z = lerp(a.z, b.z, k)
-
-    const ay = a.y ?? BALL_RADIUS
-    const by = b.y ?? BALL_RADIUS
-    out.y = lerp(ay, by, k)
-
-    const dist = Math.hypot(b.x - a.x, b.z - a.z)
-    const flightSpeed = dist / span
-
-    if (a.y === undefined && b.y === undefined && dist > 12) {
-      out.y += Math.sin(Math.PI * k) * Math.min(dist * 0.085, 3)
+    // Before the first delivery the ball waits at the starting spot.
+    if (t <= d[0].t0) {
+      out.x = d[0].from.x
+      out.y = d[0].from.y
+      out.z = d[0].from.z
+      this.stickToCarrier(carriers, out)
+      return out
     }
-    out.y = Math.max(out.y, BALL_RADIUS)
 
-    // Slow-moving ball inside a player's control radius reads as a carry:
-    // stick it to their outside foot so it stops sliding independently.
-    if (flightSpeed < 9) {
-      const near = carriers(out.x, out.z)
-      if (near) {
-        out.carrier = near.id
-        const side = near.heading + Math.PI * 0.38
-        const touch = 0.32 + Math.sin(near.stride * 0.5) * 0.12
-        out.x = near.x + Math.sin(side) * 0.28 + Math.sin(near.heading) * touch
-        out.z = near.z + Math.cos(side) * 0.28 + Math.cos(near.heading) * touch
-        out.y = BALL_RADIUS
+    for (let i = 0; i < d.length; i++) {
+      const seg = d[i]
+
+      if (t < seg.t0) {
+        // Resting between deliveries, at the previous arrival point.
+        const prev = d[i - 1]
+        out.x = prev.to.x
+        out.y = prev.to.y
+        out.z = prev.to.z
+        this.stickToCarrier(carriers, out)
+        return out
+      }
+
+      if (t <= seg.t1) {
+        const k = (t - seg.t0) / Math.max(seg.t1 - seg.t0, 1e-4)
+        out.x = lerp(seg.from.x, seg.to.x, k)
+        out.z = lerp(seg.from.z, seg.to.z, k)
+        out.y =
+          lerp(seg.from.y, seg.to.y, k) + Math.sin(Math.PI * k) * seg.loft
+        out.y = Math.max(out.y, BALL_RADIUS)
+        return out
       }
     }
+
+    const last = d[d.length - 1]
+    out.x = last.to.x
+    out.y = last.to.y
+    out.z = last.to.z
+    this.stickToCarrier(carriers, out)
     return out
   }
 
-  get end() {
-    return this.duration
+  /** A resting ball inside a player's control radius reads as a carry. */
+  private stickToCarrier(carriers: CarrierLookup, out: BallState) {
+    const near = carriers(out.x, out.z)
+    if (!near) return
+    out.carrier = near.id
+    const side = near.heading + Math.PI * 0.38
+    const touch = 0.3 + Math.sin(near.stride * 0.5) * 0.1
+    out.x = near.x + Math.sin(side) * 0.26 + Math.sin(near.heading) * touch
+    out.z = near.z + Math.cos(side) * 0.26 + Math.cos(near.heading) * touch
+    out.y = BALL_RADIUS
   }
 }
 
@@ -435,6 +554,11 @@ export class DrillSim {
   readonly poses = new Map<string, Pose>()
   readonly ball: BallState = { x: 0, y: BALL_RADIUS, z: 0, carrier: null }
   readonly passes: PassEvent[]
+  /**
+   * Playback length. Usually the authored duration, but extended when the
+   * closing delivery needs a moment longer to land.
+   */
+  readonly duration: number
   private readonly ballTrack: BallTrack
   private readonly players: DrillPlayer[]
 
@@ -472,8 +596,27 @@ export class DrillSim {
       this.poses.set(p.id, emptyPose())
     }
 
-    this.ballTrack = new BallTrack(drill.ball, drill.duration)
-    this.passes = derivePasses(drill, this.trajectories)
+    // Strikes come from the players' own actions, so the ball can be timed
+    // to the foot rather than to a hand-written keyframe.
+    const strikes: Strike[] = []
+    for (const p of drill.players) {
+      for (const k of p.path) {
+        if (STRIKE_ACTIONS.includes(k.action as StrikeKind)) {
+          strikes.push({
+            t: k.t,
+            kind: k.action as StrikeKind,
+            playerId: p.id,
+          })
+        }
+      }
+    }
+    strikes.sort((a, b) => a.t - b.t)
+
+    this.ballTrack = new BallTrack(drill.ball, strikes)
+    this.passes = derivePasses(this.ballTrack, drill, this.trajectories)
+
+    const lastArrival = this.ballTrack.deliveries.at(-1)?.t1 ?? 0
+    this.duration = Math.max(drill.duration, lastArrival + 0.25)
   }
 
   update(t: number) {
@@ -512,52 +655,47 @@ export class DrillSim {
 }
 
 /**
- * Pass events are derived, not authored: every strike action on a player's
- * path is matched to the ball keyframe nearest in time, and the receiver is
- * whoever is closest to where that delivery lands.
+ * Pass events mirror the retimed deliveries, so arrows and step-mode stops
+ * land exactly on the moment the ball is actually struck. The receiver is
+ * whoever is closest to the ball when it arrives.
  */
 function derivePasses(
+  track: BallTrack,
   drill: Drill,
   trajectories: Map<string, Trajectory>,
 ): PassEvent[] {
   const events: PassEvent[] = []
 
-  for (const p of drill.players) {
-    for (const k of p.path) {
-      if (!STRIKE_ACTIONS.includes(k.action as StrikeKind)) continue
-      const kind = k.action as StrikeKind
+  for (const seg of track.deliveries) {
+    const fromPos = seg.by
+      ? trajectories.get(seg.by)!.positionAt(seg.t0)
+      : { x: seg.from.x, z: seg.from.z }
+    const toPos = { x: seg.to.x, z: seg.to.z }
 
-      // Where the ball ends up after this strike.
-      const landing = drill.ball.find((b) => b.t > k.t + 0.05)
-      if (!landing) continue
-      const from = trajectories.get(p.id)!.positionAt(k.t)
-      const toPos = { x: landing.x, z: landing.z }
-
-      let to: string | null = null
-      if (kind !== 'shoot') {
-        let bestD = 4.5
-        for (const other of drill.players) {
-          if (other.id === p.id) continue
-          const o = trajectories.get(other.id)!.positionAt(landing.t)
-          const d = Math.hypot(o.x - toPos.x, o.z - toPos.z)
-          if (d < bestD) {
-            bestD = d
-            to = other.id
-          }
+    let to: string | null = null
+    if (seg.kind !== 'shoot') {
+      let bestD = 4.5
+      for (const other of drill.players) {
+        if (other.id === seg.by) continue
+        const o = trajectories.get(other.id)!.positionAt(seg.t1)
+        const d = Math.hypot(o.x - toPos.x, o.z - toPos.z)
+        if (d < bestD) {
+          bestD = d
+          to = other.id
         }
       }
-
-      events.push({
-        index: 0,
-        t: k.t,
-        from: p.id,
-        to,
-        kind,
-        distance: Math.hypot(toPos.x - from.x, toPos.z - from.z),
-        fromPos: from,
-        toPos,
-      })
     }
+
+    events.push({
+      index: 0,
+      t: seg.t0,
+      from: seg.by ?? '',
+      to,
+      kind: seg.kind,
+      distance: seg.dist,
+      fromPos,
+      toPos,
+    })
   }
 
   events.sort((a, b) => a.t - b.t)

@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+﻿import { useEffect, useMemo } from 'react'
 import {
   ChevronLeft,
   ChevronRight,
@@ -55,9 +55,12 @@ export function Controls({ drill }: { drill: Drill }) {
     setStepMode,
   } = useSim()
 
-  // Pass timings only depend on the drill, so derive them once for the
-  // step buttons rather than reaching into the live scene.
-  const passes = useMemo(() => new DrillSim(drill).passes, [drill])
+  // Deliveries and the true playback length both come from the retimed
+  // simulation, so the slider matches what the scene is actually doing.
+  const { passes, duration } = useMemo(() => {
+    const sim = new DrillSim(drill)
+    return { passes: sim.passes, duration: sim.duration }
+  }, [drill])
 
   const jumpPass = (dir: 1 | -1) => {
     const t = useSim.getState().time
@@ -65,7 +68,7 @@ export function Controls({ drill }: { drill: Drill }) {
       dir === 1
         ? passes.find((p) => p.t > t + 0.08)
         : [...passes].reverse().find((p) => p.t < t - 0.12)
-    seek(target ? target.t + 0.05 : dir === 1 ? drill.duration : 0)
+    seek(target ? target.t + 0.05 : dir === 1 ? duration : 0)
     useSim.getState().pause()
   }
 
@@ -85,7 +88,7 @@ export function Controls({ drill }: { drill: Drill }) {
           break
         case 'ArrowRight':
           e.preventDefault()
-          s.seek(Math.min(drill.duration, s.time + 0.25))
+          s.seek(Math.min(duration, s.time + 0.25))
           break
         case 'BracketLeft':
           jumpPass(-1)
@@ -110,7 +113,7 @@ export function Controls({ drill }: { drill: Drill }) {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [drill.duration, passes])
+  }, [duration, passes])
 
   return (
     <div className="border-t border-border bg-panel px-4 py-3">
@@ -160,13 +163,13 @@ export function Controls({ drill }: { drill: Drill }) {
         </Button>
 
         <span className="w-20 shrink-0 font-mono text-xs text-muted tabular-nums">
-          {formatTime(time)} / {formatTime(drill.duration)}
+          {formatTime(time)} / {formatTime(duration)}
         </span>
 
         <Slider
-          value={[Math.min(time, drill.duration)]}
+          value={[Math.min(time, duration)]}
           min={0}
-          max={drill.duration}
+          max={duration}
           step={0.02}
           onValueChange={([v]) => seek(v)}
           aria-label="Scrub timeline"

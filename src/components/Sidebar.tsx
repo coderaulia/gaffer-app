@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import * as Accordion from '@radix-ui/react-accordion'
 import { ChevronDown, Search, X } from 'lucide-react'
-import { CATEGORY_ORDER, DRILL_TREE, searchDrills } from '@/lib/drills'
+import { DRILL_TREE, searchDrills } from '@/lib/drills'
 import { useSim } from '@/lib/store'
 import { cn } from '@/lib/utils'
 import type { Drill } from '@/lib/types'
@@ -16,9 +16,16 @@ function DrillButton({ drill }: { drill: Drill }) {
   const drillId = useSim((s) => s.drillId)
   const selectDrill = useSim((s) => s.selectDrill)
   const active = drillId === drill.id
+  const ref = useRef<HTMLButtonElement>(null)
+
+  // Keep the open drill visible when the list is opened or switched.
+  useEffect(() => {
+    if (active) ref.current?.scrollIntoView({ block: 'nearest' })
+  }, [active])
 
   return (
     <button
+      ref={ref}
       onClick={() => selectDrill(drill.id)}
       className={cn(
         'group flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left transition-colors',
@@ -40,8 +47,20 @@ function DrillButton({ drill }: { drill: Drill }) {
 
 export function Sidebar() {
   const [query, setQuery] = useState('')
-  const [open, setOpen] = useState<string[]>([CATEGORY_ORDER[0]])
+  const current = useSim((s) => s.drill())
+  // The list follows the drill that is actually open, rather than always
+  // defaulting to the first category.
+  const [open, setOpen] = useState<string[]>(() =>
+    current ? [current.category] : [],
+  )
   const results = useMemo(() => searchDrills(query), [query])
+
+  useEffect(() => {
+    if (!current) return
+    setOpen((prev) =>
+      prev.includes(current.category) ? prev : [...prev, current.category],
+    )
+  }, [current])
 
   return (
     <aside className="flex h-full w-full flex-col bg-panel">

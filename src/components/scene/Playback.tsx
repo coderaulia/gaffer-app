@@ -12,8 +12,9 @@ const STEP_GRACE = 0.05
  * Canvas so animation never costs a React render; the store is refreshed
  * ~20x a second purely to keep the scrub slider and timecode in sync.
  */
-export function Playback({ duration }: { duration: number }) {
+export function Playback() {
   const sim = useSimulation()
+  const duration = sim.duration
   const publish = useSim((s) => s.publishTime)
   const pause = useSim((s) => s.pause)
   const acc = useRef(0)

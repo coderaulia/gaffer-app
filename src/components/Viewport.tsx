@@ -6,6 +6,7 @@ import { useSim } from '@/lib/store'
 import { DrillSim } from '@/lib/sim'
 import { SimContext } from '@/lib/simContext'
 import { Pitch } from './scene/Pitch'
+import { GroundEnvironment } from './scene/Environment'
 import { PlayerFigure } from './scene/Player'
 import { Ball } from './scene/Ball'
 import { EquipmentField } from './scene/Equipment'
@@ -17,10 +18,10 @@ import { Playback } from './scene/Playback'
 function Lights({ flat }: { flat: boolean }) {
   return (
     <>
-      <hemisphereLight args={['#cfe3ff', '#2b4a2f', flat ? 1.7 : 1.15]} />
+      <hemisphereLight args={['#bfe0ff', '#3c6b3f', flat ? 1.9 : 1.35]} />
       <directionalLight
         position={[38, 60, 26]}
-        intensity={flat ? 0.7 : 1.5}
+        intensity={flat ? 0.6 : 1.35}
         castShadow={!flat}
         shadow-mapSize={[1024, 1024]}
         shadow-camera-left={-70}
@@ -62,13 +63,14 @@ export function Viewport({ drill }: { drill: Drill }) {
         camera={{ position: [0, 45, 68], fov: 45, near: 0.5, far: 500 }}
         gl={{ antialias: true, powerPreference: 'high-performance' }}
       >
-        <color attach="background" args={['#0e141b']} />
-        <fog attach="fog" args={['#0e141b', 140, 280]} />
+        <color attach="background" args={['#8fc3e8']} />
+        <fog attach="fog" args={['#a9d2ee', 210, 460]} />
 
         <Lights flat={board} />
         {!board && <SoftShadows size={26} samples={8} focus={0.7} />}
 
         <Suspense fallback={null}>
+          <GroundEnvironment />
           <Pitch zones={drill.zones} />
           {drill.equipment && drill.equipment.length > 0 && (
             <EquipmentField items={drill.equipment} />
@@ -90,7 +92,7 @@ export function Viewport({ drill }: { drill: Drill }) {
           <Ball />
         </Suspense>
 
-        <Playback duration={drill.duration} />
+        <Playback />
         <CameraRig drill={drill} />
         <AdaptiveDpr pixelated />
       </Canvas>

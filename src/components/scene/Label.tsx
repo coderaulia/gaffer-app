@@ -1,3 +1,4 @@
+import * as React from 'react'
 import { useMemo } from 'react'
 import * as THREE from 'three'
 
@@ -38,6 +39,80 @@ function labelTexture(text: string, color: string) {
   tex.needsUpdate = true
   cache.set(key, tex)
   return tex
+}
+
+const panelCache = new Map<string, THREE.CanvasTexture>()
+
+/**
+ * Signage texture — wide canvas type for building walls and stand facades.
+ * Drawn locally so the app stays free of webfonts and image assets.
+ */
+export function signTexture(
+  text: string,
+  color: string,
+  background: string | null,
+  weight = 'bold',
+) {
+  const key = `${text}|${color}|${background}|${weight}`
+  const hit = panelCache.get(key)
+  if (hit) return hit
+
+  const canvas = document.createElement('canvas')
+  canvas.width = 2048
+  canvas.height = 256
+  const ctx = canvas.getContext('2d')!
+
+  if (background) {
+    ctx.fillStyle = background
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+  } else {
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+  }
+
+  // Shrink to fit rather than overflowing the wall.
+  let size = 150
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  do {
+    ctx.font = `${weight} ${size}px ui-sans-serif, system-ui, Segoe UI, Roboto, sans-serif`
+    size -= 4
+  } while (ctx.measureText(text).width > canvas.width - 120 && size > 20)
+
+  ctx.fillStyle = color
+  ctx.fillText(text, canvas.width / 2, canvas.height / 2 + 4)
+
+  const tex = new THREE.CanvasTexture(canvas)
+  tex.anisotropy = 8
+  tex.needsUpdate = true
+  panelCache.set(key, tex)
+  return tex
+}
+
+/** Flat lettering applied to a wall or hoarding. */
+export function SignPanel({
+  text,
+  width,
+  height,
+  color = '#ffffff',
+  background = null,
+  ...props
+}: {
+  text: string
+  width: number
+  height: number
+  color?: string
+  background?: string | null
+} & React.ComponentProps<'mesh'>) {
+  const tex = useMemo(
+    () => signTexture(text, color, background),
+    [text, color, background],
+  )
+  return (
+    <mesh {...props}>
+      <planeGeometry args={[width, height]} />
+      <meshBasicMaterial map={tex} transparent toneMapped={false} />
+    </mesh>
+  )
 }
 
 export function Label({

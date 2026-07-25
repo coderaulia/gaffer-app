@@ -150,6 +150,12 @@ export interface Drill {
   view: PitchView
   /** Animation length in seconds (one repetition). */
   duration: number
+  /**
+   * Stretches the whole timeline at load. Ball flight speed is derived from
+   * distance and so is unaffected — only the gaps between actions grow, which
+   * is what separates a rushed pattern from a readable one.
+   */
+  timeScale?: number
   players: DrillPlayer[]
   ball: BallKeyframe[]
   equipment?: Equipment[]

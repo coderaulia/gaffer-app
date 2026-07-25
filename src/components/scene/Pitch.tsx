@@ -240,12 +240,6 @@ function Zones({ zones }: { zones: Zone[] }) {
 export function Pitch({ zones }: { zones?: Zone[] }) {
   return (
     <group>
-      {/* surround so the pitch does not float in the void */}
-      <mesh position={[0, -0.01, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[150, 150]} />
-        <meshLambertMaterial color="#1d2a20" />
-      </mesh>
-
       <Stripes />
 
       {/* touchlines, halfway line, centre circle */}
