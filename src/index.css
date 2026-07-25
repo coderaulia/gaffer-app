@@ -3,6 +3,13 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
+  --font-sans:
+    'Lato', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+    sans-serif;
+  --font-serif:
+    'Poppins', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+    sans-serif;
+
   --color-bg: oklch(0.17 0.012 250);
   --color-panel: oklch(0.21 0.014 250);
   --color-panel-2: oklch(0.25 0.016 250);
@@ -28,10 +35,24 @@
     margin: 0;
     background: var(--color-bg);
     color: var(--color-fg);
-    font-family:
-      ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     overscroll-behavior: none;
+  }
+
+  .tabular-nums,
+  input[type='number'] {
+    font-variant-numeric: tabular-nums lining-nums;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-serif);
+    font-weight: 600;
   }
 }
 
