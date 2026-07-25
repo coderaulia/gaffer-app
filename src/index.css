@@ -1,0 +1,43 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-bg: oklch(0.17 0.012 250);
+  --color-panel: oklch(0.21 0.014 250);
+  --color-panel-2: oklch(0.25 0.016 250);
+  --color-border: oklch(0.31 0.018 250);
+  --color-fg: oklch(0.96 0.005 250);
+  --color-muted: oklch(0.66 0.014 250);
+  --color-accent: oklch(0.75 0.17 150);
+  --color-attack: oklch(0.72 0.18 25);
+  --color-defense: oklch(0.68 0.15 250);
+  --color-neutral-role: oklch(0.86 0.14 95);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    margin: 0;
+    background: var(--color-bg);
+    color: var(--color-fg);
+    font-family:
+      ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior: none;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border) transparent;
+  }
+}
