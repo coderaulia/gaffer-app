@@ -4,8 +4,9 @@ import { CATEGORY_ORDER, DRILL_TREE, searchDrills } from '@/lib/drills'
 import { useSim } from '@/lib/store'
 import { cn } from '@/lib/utils'
 import type { Drill } from '@/lib/types'
+import { AppShell } from '../shell/AppShell'
 
-const CATEGORY_STYLE: Record<
+export const CATEGORY_STYLE: Record<
   string,
   { text: string; ring: string; blurb: string }
 > = {
@@ -26,7 +27,7 @@ const CATEGORY_STYLE: Record<
   },
 }
 
-function DrillCard({ drill }: { drill: Drill }) {
+export function DrillCard({ drill }: { drill: Drill }) {
   const selectDrill = useSim((s) => s.selectDrill)
   const tint = CATEGORY_STYLE[drill.category]
 
@@ -48,7 +49,7 @@ function DrillCard({ drill }: { drill: Drill }) {
         >
           {drill.code}
         </span>
-        <span className="text-[10px] tracking-wider text-muted uppercase">
+        <span className="truncate text-[10px] tracking-wider text-muted uppercase">
           {drill.style}
         </span>
       </div>
@@ -67,36 +68,24 @@ function DrillCard({ drill }: { drill: Drill }) {
   )
 }
 
-/**
- * The app opens here: a menu of every drill, no pitch and nothing playing.
- * Picking a drill is what starts the simulation.
- */
-export function Landing() {
+/** The drill library. Selecting a drill hands off to the pitch simulator. */
+export function DrillsPage() {
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState<string | null>(null)
   const results = useMemo(() => searchDrills(query), [query])
 
-  const visible = query
-    ? results
-    : DRILL_TREE.filter((c) => !category || c.category === category)
+  const visible = DRILL_TREE.filter(
+    (c) => !category || c.category === category,
+  )
 
   return (
-    <div className="scrollbar-thin h-full overflow-y-auto">
-      <div className="mx-auto w-full max-w-6xl px-8 py-10">
-        <header>
-          <h1 className="text-4xl font-bold tracking-tight">
-            Football Drill Simulator
-          </h1>
-          <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-muted">
-            43 training drills from the attacking, defending and passing
-            manuals, simulated in 3D. Pick a drill to run it — adjust speed,
-            scrub the timeline, switch camera angles, and hover any player to
-            see what they should be doing.
-          </p>
-        </header>
-
-        <div className="mt-8 flex flex-wrap items-center gap-3">
-          <div className="relative min-w-64 flex-1">
+    <AppShell
+      title="Drill Library"
+      subtitle="43 drills from the attacking, defending and passing manuals"
+    >
+      <div className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative min-w-56 flex-1">
             <Search className="pointer-events-none absolute top-3 left-3 h-4 w-4 text-muted" />
             <input
               value={query}
@@ -119,7 +108,7 @@ export function Landing() {
           </div>
 
           {!query && (
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => setCategory(null)}
                 className={cn(
@@ -151,9 +140,9 @@ export function Landing() {
 
         {query ? (
           <section className="mt-8">
-            <h2 className="text-[13px] tracking-wider text-muted uppercase">
+            <h3 className="text-[13px] tracking-wider text-muted uppercase">
               {results.length} result{results.length === 1 ? '' : 's'}
-            </h2>
+            </h3>
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {results.map((d) => (
                 <DrillCard key={d.id} drill={d} />
@@ -161,17 +150,17 @@ export function Landing() {
             </div>
           </section>
         ) : (
-          (visible as typeof DRILL_TREE).map((cat) => (
-            <section key={cat.category} className="mt-12">
-              <div className="flex items-baseline gap-3 border-b border-border pb-3">
-                <h2
+          visible.map((cat) => (
+            <section key={cat.category} className="mt-10">
+              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-border pb-3">
+                <h3
                   className={cn(
-                    'text-2xl font-bold tracking-tight',
+                    'text-xl font-bold tracking-tight md:text-2xl',
                     CATEGORY_STYLE[cat.category].text,
                   )}
                 >
                   {cat.category}
-                </h2>
+                </h3>
                 <span className="text-[13px] text-muted">
                   {cat.count} drills · {CATEGORY_STYLE[cat.category].blurb}
                 </span>
@@ -179,9 +168,9 @@ export function Landing() {
 
               {cat.groups.map((g) => (
                 <div key={g.group} className="mt-6">
-                  <h3 className="text-[13px] font-semibold tracking-wider text-muted uppercase">
+                  <h4 className="text-[12px] font-semibold tracking-wider text-muted uppercase">
                     {g.group}
-                  </h3>
+                  </h4>
                   <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {g.drills.map((d) => (
                       <DrillCard key={d.id} drill={d} />
@@ -193,6 +182,6 @@ export function Landing() {
           ))
         )}
       </div>
-    </div>
+    </AppShell>
   )
 }

@@ -60,11 +60,11 @@ export function Viewport({ drill }: { drill: Drill }) {
       <Canvas
         shadows={!board}
         dpr={[1, 1.75]}
-        camera={{ position: [0, 45, 68], fov: 45, near: 0.5, far: 500 }}
+        camera={{ position: [0, 45, 68], fov: 45, near: 0.5, far: 1200 }}
         gl={{ antialias: true, powerPreference: 'high-performance' }}
       >
         <color attach="background" args={['#8fc3e8']} />
-        <fog attach="fog" args={['#a9d2ee', 210, 460]} />
+        <fog attach="fog" args={['#a9d2ee', 170, 430]} />
 
         <Lights flat={board} />
         {!board && <SoftShadows size={26} samples={8} focus={0.7} />}

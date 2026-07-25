@@ -1,30 +1,25 @@
 import { useState } from 'react'
-import { ArrowLeft, PanelLeft, PanelRight } from 'lucide-react'
+import { ArrowLeft, CalendarDays, PanelLeft, PanelRight, Users } from 'lucide-react'
 import { Sidebar } from './components/Sidebar'
-import { Landing } from './components/Landing'
 import { Viewport } from './components/Viewport'
 import { Controls } from './components/Controls'
 import { DrillPanel } from './components/DrillPanel'
 import { HoverTooltip, PhaseCaption } from './components/Overlays'
 import { Button } from './components/ui/button'
+import { HomePage } from './components/pages/HomePage'
+import { DrillsPage } from './components/pages/DrillsPage'
+import { SettingsPage } from './components/pages/SettingsPage'
+import { ComingSoonPage } from './components/pages/Placeholder'
 import { useSim } from './lib/store'
 import { cn } from './lib/utils'
 
-export default function App() {
-  const drill = useSim((s) => s.drill())
+/** The pitch simulator. Unchanged by the management screens around it. */
+function DrillSimulator() {
+  const drill = useSim((s) => s.drill())!
   const sidebarOpen = useSim((s) => s.sidebarOpen)
   const setSidebarOpen = useSim((s) => s.setSidebarOpen)
   const backToMenu = useSim((s) => s.backToMenu)
   const [infoOpen, setInfoOpen] = useState(true)
-
-  // No drill picked yet: the menu is the landing screen, nothing is running.
-  if (!drill) {
-    return (
-      <div className="h-full w-full overflow-hidden bg-bg">
-        <Landing />
-      </div>
-    )
-  }
 
   return (
     <div className="flex h-full w-full overflow-hidden bg-bg">
@@ -53,10 +48,10 @@ export default function App() {
             variant="ghost"
             size="sm"
             onClick={backToMenu}
-            title="Back to the drill menu"
+            title="Back to the drill library"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
-            Menu
+            Library
           </Button>
 
           <div className="min-w-0 pl-1">
@@ -101,4 +96,51 @@ export default function App() {
       <HoverTooltip drill={drill} />
     </div>
   )
+}
+
+export default function App() {
+  const drillId = useSim((s) => s.drillId)
+  const route = useSim((s) => s.route)
+
+  // A drill being open takes over the whole screen.
+  if (drillId) return <DrillSimulator />
+
+  switch (route) {
+    case 'drills':
+      return <DrillsPage />
+    case 'sessions':
+      return (
+        <ComingSoonPage
+          title="Sessions"
+          subtitle="Training plans"
+          icon={CalendarDays}
+          blurb="Session planning arrives in the next phase."
+          bullets={[
+            'A list of every session you have planned, by date',
+            'A builder that pulls drills from the library into an ordered timeline',
+            'Duration per block, with the total session time kept in view',
+            'Saved on this device, no account needed',
+          ]}
+        />
+      )
+    case 'squad':
+      return (
+        <ComingSoonPage
+          title="Squad"
+          subtitle="Player management"
+          icon={Users}
+          blurb="Player management arrives in the phase after sessions."
+          bullets={[
+            'Every player with position, preferred foot and availability',
+            'Add, edit and remove squad members',
+            'A detail view for each player with a free-text notes field',
+            'Availability feeds the squad snapshot on the home screen',
+          ]}
+        />
+      )
+    case 'settings':
+      return <SettingsPage />
+    default:
+      return <HomePage />
+  }
 }

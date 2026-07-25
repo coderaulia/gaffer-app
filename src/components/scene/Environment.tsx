@@ -8,6 +8,9 @@ export const GROUND_NAME = 'VANAILA FC TRAINING GROUND'
 const HALF_W = 34
 const HALF_L = 52.5
 
+/** Quarter turn, used to face the outlying blocks at the pitch. */
+const R = Math.PI / 2
+
 /* ------------------------------------------------------------------ */
 /* Beach behind the attacking goal                                     */
 /* ------------------------------------------------------------------ */
@@ -351,6 +354,249 @@ function Trees() {
   )
 }
 
+/* ------------------------------------------------------------------ */
+/* Outskirts: haze, surrounding land, town blocks and car parks         */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Vertical haze curtain standing on the sea horizon. A one-pixel-wide
+ * gradient fades the water into the sky so the world has no hard edge.
+ */
+function SeaHaze() {
+  const tex = useMemo(() => {
+    const canvas = document.createElement('canvas')
+    canvas.width = 1
+    canvas.height = 64
+    const ctx = canvas.getContext('2d')!
+    const grad = ctx.createLinearGradient(0, 0, 0, 64)
+    grad.addColorStop(0, 'rgba(169,210,238,0)')
+    grad.addColorStop(0.45, 'rgba(169,210,238,0.72)')
+    grad.addColorStop(1, 'rgba(186,220,242,1)')
+    ctx.fillStyle = grad
+    ctx.fillRect(0, 0, 1, 64)
+    const t = new THREE.CanvasTexture(canvas)
+    t.needsUpdate = true
+    return t
+  }, [])
+
+  return (
+    <group>
+      {/* the water carries on past the haze so nothing shows underneath */}
+      <mesh position={[0, 0.004, -420]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[900, 260]} />
+        <meshLambertMaterial color="#1d7099" />
+      </mesh>
+
+      {[
+        { z: -330, h: 34, o: 0.85 },
+        { z: -420, h: 52, o: 1 },
+      ].map((band, i) => (
+        <mesh key={i} position={[0, band.h / 2, band.z]}>
+          <planeGeometry args={[900, band.h]} />
+          <meshBasicMaterial
+            map={tex}
+            transparent
+            opacity={band.o}
+            depthWrite={false}
+            fog={false}
+            side={THREE.DoubleSide}
+            toneMapped={false}
+          />
+        </mesh>
+      ))}
+    </group>
+  )
+}
+
+/** Scrubby land the ground sits in, reaching out to the town blocks. */
+function Outland() {
+  return (
+    <group>
+      <mesh position={[0, -0.04, 70]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[700, 260]} />
+        <meshLambertMaterial color="#4a7f3d" />
+      </mesh>
+      {/* dusty strip between the ground and the sand */}
+      <mesh position={[0, -0.03, -58]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[700, 26]} />
+        <meshLambertMaterial color="#b9ab7d" />
+      </mesh>
+    </group>
+  )
+}
+
+/** Flat-roofed block with a window band, used for the town silhouette. */
+function Block({
+  w,
+  d,
+  h,
+  color,
+  roof = '#6d737a',
+}: {
+  w: number
+  d: number
+  h: number
+  color: string
+  roof?: string
+}) {
+  const floors = Math.max(1, Math.floor(h / 3.4))
+  return (
+    <group>
+      <mesh position={[0, h / 2, 0]} castShadow receiveShadow>
+        <boxGeometry args={[w, h, d]} />
+        <meshLambertMaterial color={color} />
+      </mesh>
+      <mesh position={[0, h + 0.3, 0]} castShadow>
+        <boxGeometry args={[w + 0.6, 0.6, d + 0.6]} />
+        <meshLambertMaterial color={roof} />
+      </mesh>
+      {Array.from({ length: floors }, (_, f) => (
+        <mesh key={f} position={[0, 2.2 + f * 3.4, d / 2 + 0.05]}>
+          <planeGeometry args={[w - 1.6, 1.5]} />
+          <meshLambertMaterial color="#2f4152" emissive="#18242f" />
+        </mesh>
+      ))}
+    </group>
+  )
+}
+
+/** Asphalt lot with painted bays and parked cars. */
+function CarPark({
+  w = 40,
+  d = 26,
+  rows = 2,
+}: {
+  w?: number
+  d?: number
+  rows?: number
+}) {
+  const bays = Math.floor(w / 3.2)
+
+  const cars = useMemo(() => {
+    const palette = ['#c8ccd2', '#3a4552', '#a8352f', '#2d5f9a', '#dfe3e7', '#4d6b46']
+    const out: { x: number; z: number; color: string }[] = []
+    for (let r = 0; r < rows; r++) {
+      for (let b = 0; b < bays; b++) {
+        // leave gaps so the lot does not read as a solid wall of metal
+        if ((b * 7 + r * 3) % 5 === 0) continue
+        out.push({
+          x: -w / 2 + 1.6 + b * 3.2,
+          z: -d / 2 + 5 + r * (d - 8),
+          color: palette[(b + r * 3) % palette.length],
+        })
+      }
+    }
+    return out
+  }, [bays, rows, w, d])
+
+  return (
+    <group>
+      <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[w, d]} />
+        <meshLambertMaterial color="#4b4f55" />
+      </mesh>
+
+      {/* bay markings */}
+      <Instances limit={bays * rows + 4}>
+        <planeGeometry args={[0.16, 5]} />
+        <meshBasicMaterial color="#d8dcd6" />
+        {Array.from({ length: rows }, (_, r) =>
+          Array.from({ length: bays + 1 }, (_, b) => (
+            <Instance
+              key={`${r}-${b}`}
+              position={[-w / 2 + b * 3.2, 0.03, -d / 2 + 5 + r * (d - 8)]}
+              rotation={[-Math.PI / 2, 0, 0]}
+            />
+          )),
+        )}
+      </Instances>
+
+      {cars.map((c, i) => (
+        <group key={i} position={[c.x, 0, c.z]}>
+          <mesh position={[0, 0.62, 0]} castShadow>
+            <boxGeometry args={[1.75, 0.85, 4.1]} />
+            <meshLambertMaterial color={c.color} />
+          </mesh>
+          <mesh position={[0, 1.28, -0.2]} castShadow>
+            <boxGeometry args={[1.6, 0.62, 2.1]} />
+            <meshLambertMaterial color="#26313b" />
+          </mesh>
+        </group>
+      ))}
+
+      {/* perimeter fence on the far edge */}
+      <mesh position={[0, 1, -d / 2]} castShadow>
+        <boxGeometry args={[w, 2, 0.14]} />
+        <meshLambertMaterial color="#78808a" />
+      </mesh>
+    </group>
+  )
+}
+
+/**
+ * Everything past the ground: car parks either side, then a town skyline
+ * that closes off the horizon on both flanks.
+ */
+function Outskirts() {
+  const blocks = useMemo(
+    () => [
+      /* right-hand flank, behind the main stand; windows turned to the pitch */
+      { x: 152, z: -34, w: 34, d: 22, h: 12, color: '#b8b2a4', rot: -R },
+      { x: 158, z: 6, w: 26, d: 26, h: 18, color: '#9fa8b0', rot: -R },
+      { x: 148, z: 46, w: 40, d: 20, h: 9, color: '#c2b9a8', rot: -R },
+      { x: 206, z: -6, w: 30, d: 30, h: 26, color: '#8d97a1', rot: -R },
+      { x: 212, z: 52, w: 36, d: 24, h: 15, color: '#aeb6bd', rot: -R },
+      { x: 198, z: -60, w: 44, d: 26, h: 11, color: '#b0a897', rot: -R },
+      /* left-hand flank, behind the training building */
+      { x: -160, z: -30, w: 36, d: 24, h: 14, color: '#b5aea0', rot: R },
+      { x: -152, z: 14, w: 28, d: 28, h: 21, color: '#98a2ab', rot: R },
+      { x: -166, z: 56, w: 42, d: 22, h: 10, color: '#c0b7a6', rot: R },
+      { x: -214, z: -12, w: 32, d: 30, h: 28, color: '#8a949e', rot: R },
+      { x: -206, z: 44, w: 38, d: 26, h: 16, color: '#adb5bc', rot: R },
+      { x: -200, z: -62, w: 40, d: 24, h: 12, color: '#aea695', rot: R },
+      /* a low run behind the netting so the far end is not empty */
+      { x: -60, z: 128, w: 46, d: 22, h: 10, color: '#b3ab9c', rot: Math.PI },
+      { x: 4, z: 138, w: 54, d: 24, h: 14, color: '#a3adb6', rot: Math.PI },
+      { x: 70, z: 130, w: 40, d: 22, h: 11, color: '#bcb3a3', rot: Math.PI },
+      { x: -8, z: 186, w: 60, d: 28, h: 22, color: '#95a0aa', rot: Math.PI },
+    ],
+    [],
+  )
+
+  return (
+    <group>
+      {/* access road running along both touchlines */}
+      <mesh position={[112, 0.01, 20]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[14, 220]} />
+        <meshLambertMaterial color="#575c62" />
+      </mesh>
+      <mesh position={[-128, 0.01, 20]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[14, 220]} />
+        <meshLambertMaterial color="#575c62" />
+      </mesh>
+
+      <group position={[124, 0, -40]}>
+        <CarPark w={44} d={30} rows={2} />
+      </group>
+      <group position={[122, 0, 40]}>
+        <CarPark w={38} d={26} rows={2} />
+      </group>
+      <group position={[-142, 0, -34]}>
+        <CarPark w={40} d={28} rows={2} />
+      </group>
+      <group position={[-140, 0, 44]}>
+        <CarPark w={36} d={26} rows={2} />
+      </group>
+
+      {blocks.map((b, i) => (
+        <group key={i} position={[b.x, 0, b.z]} rotation={[0, b.rot, 0]}>
+          <Block w={b.w} d={b.d} h={b.h} color={b.color} />
+        </group>
+      ))}
+    </group>
+  )
+}
+
 /** Ball-stop netting behind the far goal, as on a real training ground. */
 function Netting() {
   return (
@@ -377,17 +623,20 @@ function Netting() {
 export function GroundEnvironment() {
   return (
     <group>
-      {/* grass apron the pitch sits on, stopping short of the sand */}
+      {/* land the ground sits in, then the grass apron on top of it */}
+      <Outland />
       <mesh position={[0, -0.01, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[220, 122]} />
         <meshLambertMaterial color="#2c6b32" />
       </mesh>
 
       <Beach />
+      <SeaHaze />
+      <Outskirts />
       <Hoardings />
 
       {/* main stand, right-hand side */}
-      <group position={[HALF_W + 12, 0, 0]} rotation={[0, -Math.PI / 2, 0]}>
+      <group position={[HALF_W + 12, 0, 0]} rotation={[0, Math.PI / 2, 0]}>
         <Stand length={64} rows={9} />
       </group>
 
@@ -395,7 +644,7 @@ export function GroundEnvironment() {
       <group position={[-HALF_W - 26, 0, 4]} rotation={[0, Math.PI / 2, 0]}>
         <TrainingBuilding />
       </group>
-      <group position={[-HALF_W - 10, 0, -26]} rotation={[0, Math.PI / 2, 0]}>
+      <group position={[-HALF_W - 10, 0, -26]} rotation={[0, -Math.PI / 2, 0]}>
         <Stand length={26} rows={5} />
       </group>
 
