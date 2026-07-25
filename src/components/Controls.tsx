@@ -1,5 +1,8 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import {
+  ChevronLeft,
+  ChevronRight,
+  Footprints,
   Pause,
   Play,
   Repeat,
@@ -9,10 +12,12 @@ import {
   Video,
 } from 'lucide-react'
 import type { Drill } from '@/lib/types'
+import { DrillSim } from '@/lib/sim'
 import { useSim, type CameraPreset, type SpeedLevel } from '@/lib/store'
 import { Button } from './ui/button'
 import { Slider } from './ui/slider'
 import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group'
+import { PhaseStrip } from './Overlays'
 import { cn, formatTime } from '@/lib/utils'
 
 const SPEEDS: { value: SpeedLevel; label: string; hint: string }[] = [
@@ -25,6 +30,7 @@ const CAMERAS: { value: CameraPreset; label: string }[] = [
   { value: 'broadcast', label: 'Broadcast' },
   { value: 'sideline', label: 'Sideline' },
   { value: 'topdown', label: 'Top-down' },
+  { value: 'board', label: 'Board' },
 ]
 
 export function Controls({ drill }: { drill: Drill }) {
@@ -43,9 +49,26 @@ export function Controls({ drill }: { drill: Drill }) {
     setShowLabels,
     showTrails,
     setShowTrails,
+    showArrows,
+    setShowArrows,
+    stepMode,
+    setStepMode,
   } = useSim()
 
-  // Space toggles playback, arrow keys scrub, 1/2/3 pick the camera.
+  // Pass timings only depend on the drill, so derive them once for the
+  // step buttons rather than reaching into the live scene.
+  const passes = useMemo(() => new DrillSim(drill).passes, [drill])
+
+  const jumpPass = (dir: 1 | -1) => {
+    const t = useSim.getState().time
+    const target =
+      dir === 1
+        ? passes.find((p) => p.t > t + 0.08)
+        : [...passes].reverse().find((p) => p.t < t - 0.12)
+    seek(target ? target.t + 0.05 : dir === 1 ? drill.duration : 0)
+    useSim.getState().pause()
+  }
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement | null
@@ -64,6 +87,12 @@ export function Controls({ drill }: { drill: Drill }) {
           e.preventDefault()
           s.seek(Math.min(drill.duration, s.time + 0.25))
           break
+        case 'BracketLeft':
+          jumpPass(-1)
+          break
+        case 'BracketRight':
+          jumpPass(1)
+          break
         case 'Digit1':
           s.setCamera('broadcast')
           break
@@ -73,15 +102,29 @@ export function Controls({ drill }: { drill: Drill }) {
         case 'Digit3':
           s.setCamera('topdown')
           break
+        case 'Digit4':
+          s.setCamera('board')
+          break
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [drill.duration])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drill.duration, passes])
 
   return (
     <div className="border-t border-border bg-panel px-4 py-3">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2.5">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => jumpPass(-1)}
+          aria-label="Previous pass"
+          title="Previous pass ( [ )"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+
         <Button
           variant="accent"
           size="icon"
@@ -94,6 +137,16 @@ export function Controls({ drill }: { drill: Drill }) {
           ) : (
             <Play className="ml-0.5 h-4 w-4" />
           )}
+        </Button>
+
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => jumpPass(1)}
+          aria-label="Next pass"
+          title="Next pass ( ] )"
+        >
+          <ChevronRight className="h-4 w-4" />
         </Button>
 
         <Button
@@ -132,6 +185,8 @@ export function Controls({ drill }: { drill: Drill }) {
         </Button>
       </div>
 
+      <PhaseStrip drill={drill} />
+
       <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
         <div className="flex items-center gap-2">
           <span className="text-[11px] tracking-wide text-muted uppercase">
@@ -143,7 +198,11 @@ export function Controls({ drill }: { drill: Drill }) {
             onValueChange={(v) => v && setSpeed(Number(v) as SpeedLevel)}
           >
             {SPEEDS.map((s) => (
-              <ToggleGroupItem key={s.value} value={String(s.value)} title={s.hint}>
+              <ToggleGroupItem
+                key={s.value}
+                value={String(s.value)}
+                title={s.hint}
+              >
                 {s.label}
               </ToggleGroupItem>
             ))}
@@ -169,7 +228,27 @@ export function Controls({ drill }: { drill: Drill }) {
           </ToggleGroup>
         </div>
 
+        <Button
+          variant={stepMode ? 'accent' : 'outline'}
+          size="sm"
+          onClick={() => setStepMode(!stepMode)}
+          title="Pause automatically at every pass"
+        >
+          <Footprints className="h-3.5 w-3.5" />
+          Step by pass
+        </Button>
+
         <div className="ml-auto flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowArrows(!showArrows)}
+            className={cn(showArrows && 'text-accent')}
+            title="Toggle numbered pass arrows"
+          >
+            <ChevronRight className="h-3.5 w-3.5" />
+            Passes
+          </Button>
           <Button
             variant="ghost"
             size="sm"

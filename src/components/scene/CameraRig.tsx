@@ -42,6 +42,12 @@ function shotFor(preset: CameraPreset, view: PitchView): Shot {
         pos: new THREE.Vector3(f.cx, f.span * 1.55, f.cz + 0.01),
         target: t,
       }
+    // Tight, square-on tactics board — the framing coaching diagrams use.
+    case 'board':
+      return {
+        pos: new THREE.Vector3(f.cx, f.span * 1.02, f.cz + 0.01),
+        target: t,
+      }
   }
 }
 

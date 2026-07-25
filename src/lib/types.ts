@@ -68,6 +68,31 @@ export interface DrillPlayer {
   name: string
   team: Team
   path: Keyframe[]
+  /**
+   * Id of an opponent this player defends. When set, the authored path is
+   * blended toward a goal-side position relative to that opponent, so
+   * jockeying and covering track the man instead of drifting off him.
+   */
+  marks?: string
+  /** How strongly marking overrides the authored path, 0..1. Default 0.55. */
+  markWeight?: number
+  /** Metres of goal-side separation to hold. Default 1.4. */
+  markDistance?: number
+}
+
+/**
+ * A coaching phase of the drill. Drives the phase strip, the in-viewport
+ * caption, which players are highlighted, and the per-player hover cue.
+ */
+export interface Phase {
+  t0: number
+  t1: number
+  title: string
+  text: string
+  /** Players central to this phase; others dim while it is active. */
+  focus?: string[]
+  /** One short instruction per player, keyed by player id. */
+  cues?: Record<string, string>
 }
 
 export type EquipmentKind =
@@ -129,6 +154,7 @@ export interface Drill {
   ball: BallKeyframe[]
   equipment?: Equipment[]
   zones?: Zone[]
+  phases?: Phase[]
 }
 
 /* ------------------------------------------------------------------ */
@@ -144,6 +170,7 @@ export function player(
   name: string,
   team: Team,
   path: PathTuple[],
+  marking?: Pick<DrillPlayer, 'marks' | 'markWeight' | 'markDistance'>,
 ): DrillPlayer {
   return {
     id,
@@ -151,6 +178,7 @@ export function player(
     name,
     team,
     path: path.map(([t, x, z, action]) => ({ t, x, z, action })),
+    ...marking,
   }
 }
 

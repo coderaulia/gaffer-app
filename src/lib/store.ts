@@ -3,10 +3,11 @@ import { DRILLS } from './drills'
 import type { Drill } from './types'
 
 export type SpeedLevel = 0.5 | 1 | 2
-export type CameraPreset = 'broadcast' | 'sideline' | 'topdown'
+export type CameraPreset = 'broadcast' | 'sideline' | 'topdown' | 'board'
 
 interface SimState {
-  drillId: string
+  /** null while the drill menu is showing — no pitch, nothing playing. */
+  drillId: string | null
   playing: boolean
   speed: SpeedLevel
   loop: boolean
@@ -17,10 +18,15 @@ interface SimState {
   seekToken: number
   showLabels: boolean
   showTrails: boolean
+  showArrows: boolean
+  /** Pause automatically at each pass so the pattern can be stepped through. */
+  stepMode: boolean
   sidebarOpen: boolean
+  hoveredId: string | null
 
-  drill: () => Drill
+  drill: () => Drill | null
   selectDrill: (id: string) => void
+  backToMenu: () => void
   play: () => void
   pause: () => void
   toggle: () => void
@@ -31,12 +37,15 @@ interface SimState {
   publishTime: (t: number) => void
   setShowLabels: (v: boolean) => void
   setShowTrails: (v: boolean) => void
+  setShowArrows: (v: boolean) => void
+  setStepMode: (v: boolean) => void
   setSidebarOpen: (v: boolean) => void
+  setHovered: (id: string | null) => void
 }
 
 export const useSim = create<SimState>((set, get) => ({
-  drillId: DRILLS[0].id,
-  playing: true,
+  drillId: null,
+  playing: false,
   speed: 1,
   loop: true,
   camera: 'broadcast',
@@ -44,16 +53,21 @@ export const useSim = create<SimState>((set, get) => ({
   seekToken: 0,
   showLabels: true,
   showTrails: true,
+  showArrows: true,
+  stepMode: false,
   sidebarOpen: true,
+  hoveredId: null,
 
-  drill: () => DRILLS.find((d) => d.id === get().drillId) ?? DRILLS[0],
+  drill: () => DRILLS.find((d) => d.id === get().drillId) ?? null,
   selectDrill: (id) =>
     set((s) => ({
       drillId: id,
       time: 0,
       playing: true,
+      hoveredId: null,
       seekToken: s.seekToken + 1,
     })),
+  backToMenu: () => set({ drillId: null, playing: false, time: 0 }),
   play: () => set({ playing: true }),
   pause: () => set({ playing: false }),
   toggle: () => set((s) => ({ playing: !s.playing })),
@@ -64,5 +78,8 @@ export const useSim = create<SimState>((set, get) => ({
   publishTime: (time) => set({ time }),
   setShowLabels: (showLabels) => set({ showLabels }),
   setShowTrails: (showTrails) => set({ showTrails }),
+  setShowArrows: (showArrows) => set({ showArrows }),
+  setStepMode: (stepMode) => set({ stepMode }),
   setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
+  setHovered: (hoveredId) => set({ hoveredId }),
 }))
