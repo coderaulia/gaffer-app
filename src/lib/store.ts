@@ -75,7 +75,16 @@ export const useSim = create<SimState>((set, get) => ({
   hoveredId: null,
 
   drill: () => DRILLS.find((d) => d.id === get().drillId) ?? null,
-  setRoute: (route) => set({ route, drillId: null, playing: false }),
+  // Navigating from the rail always lands on the top level of a section,
+  // never inside a half-open session or player detail view.
+  setRoute: (route) =>
+    set({
+      route,
+      drillId: null,
+      playing: false,
+      editingSessionId: null,
+      editingPlayerId: null,
+    }),
   setEditingSession: (editingSessionId) => set({ editingSessionId }),
   setEditingPlayer: (editingPlayerId) => set({ editingPlayerId }),
   selectDrill: (id) => {

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowLeft, PanelLeft, PanelRight, Users } from 'lucide-react'
+import { ArrowLeft, PanelLeft, PanelRight } from 'lucide-react'
 import { Sidebar } from './components/Sidebar'
 import { Viewport } from './components/Viewport'
 import { Controls } from './components/Controls'
@@ -9,8 +9,8 @@ import { Button } from './components/ui/button'
 import { HomePage } from './components/pages/HomePage'
 import { DrillsPage } from './components/pages/DrillsPage'
 import { SessionsPage } from './components/pages/SessionsPage'
+import { SquadPage } from './components/pages/SquadPage'
 import { SettingsPage } from './components/pages/SettingsPage'
-import { ComingSoonPage } from './components/pages/Placeholder'
 import { useSim } from './lib/store'
 import { cn } from './lib/utils'
 
@@ -112,20 +112,7 @@ export default function App() {
     case 'sessions':
       return <SessionsPage />
     case 'squad':
-      return (
-        <ComingSoonPage
-          title="Squad"
-          subtitle="Player management"
-          icon={Users}
-          blurb="Player management arrives in the phase after sessions."
-          bullets={[
-            'Every player with position, preferred foot and availability',
-            'Add, edit and remove squad members',
-            'A detail view for each player with a free-text notes field',
-            'Availability feeds the squad snapshot on the home screen',
-          ]}
-        />
-      )
+      return <SquadPage />
     case 'settings':
       return <SettingsPage />
     default:
