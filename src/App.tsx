@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowLeft, CalendarDays, PanelLeft, PanelRight, Users } from 'lucide-react'
+import { ArrowLeft, PanelLeft, PanelRight, Users } from 'lucide-react'
 import { Sidebar } from './components/Sidebar'
 import { Viewport } from './components/Viewport'
 import { Controls } from './components/Controls'
@@ -8,6 +8,7 @@ import { HoverTooltip, PhaseCaption } from './components/Overlays'
 import { Button } from './components/ui/button'
 import { HomePage } from './components/pages/HomePage'
 import { DrillsPage } from './components/pages/DrillsPage'
+import { SessionsPage } from './components/pages/SessionsPage'
 import { SettingsPage } from './components/pages/SettingsPage'
 import { ComingSoonPage } from './components/pages/Placeholder'
 import { useSim } from './lib/store'
@@ -109,20 +110,7 @@ export default function App() {
     case 'drills':
       return <DrillsPage />
     case 'sessions':
-      return (
-        <ComingSoonPage
-          title="Sessions"
-          subtitle="Training plans"
-          icon={CalendarDays}
-          blurb="Session planning arrives in the next phase."
-          bullets={[
-            'A list of every session you have planned, by date',
-            'A builder that pulls drills from the library into an ordered timeline',
-            'Duration per block, with the total session time kept in view',
-            'Saved on this device, no account needed',
-          ]}
-        />
-      )
+      return <SessionsPage />
     case 'squad':
       return (
         <ComingSoonPage

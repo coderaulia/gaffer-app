@@ -1,15 +1,10 @@
 import { useState } from 'react'
 import { Trash2 } from 'lucide-react'
 import { useCoach } from '@/lib/coach'
-import { cn } from '@/lib/utils'
 import { Button } from '../ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
+import { Field, Input } from '../ui/input'
 import { AppShell } from '../shell/AppShell'
-
-const inputClass = cn(
-  'h-10 w-full rounded-md border border-border bg-panel-2 px-3 text-[13px]',
-  'placeholder:text-muted focus:ring-2 focus:ring-accent/50 focus:outline-none',
-)
 
 export function SettingsPage() {
   const { clubName, coachName, setClubName, setCoachName, resetAll } =
@@ -26,28 +21,20 @@ export function SettingsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <label className="block">
-              <span className="mb-1 block text-[12px] text-muted">
-                Club name
-              </span>
-              <input
+            <Field label="Club name">
+              <Input
                 value={clubName}
                 onChange={(e) => setClubName(e.target.value)}
                 placeholder="Vanaila FC"
-                className={inputClass}
               />
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-[12px] text-muted">
-                Coach name
-              </span>
-              <input
+            </Field>
+            <Field label="Coach name">
+              <Input
                 value={coachName}
                 onChange={(e) => setCoachName(e.target.value)}
                 placeholder="Your name"
-                className={inputClass}
               />
-            </label>
+            </Field>
           </CardContent>
         </Card>
 
