@@ -1,7 +1,6 @@
-import { useState } from 'react'
+import { lazy, Suspense, useMemo, useState } from 'react'
 import { ArrowLeft, PanelLeft, PanelRight } from 'lucide-react'
 import { Sidebar } from './components/Sidebar'
-import { Viewport } from './components/Viewport'
 import { Controls } from './components/Controls'
 import { DrillPanel } from './components/DrillPanel'
 import { HoverTooltip, PhaseCaption } from './components/Overlays'
@@ -12,7 +11,22 @@ import { SessionsPage } from './components/pages/SessionsPage'
 import { SquadPage } from './components/pages/SquadPage'
 import { SettingsPage } from './components/pages/SettingsPage'
 import { useSim } from './lib/store'
+import { DrillSim } from './lib/sim'
 import { cn } from './lib/utils'
+
+// three.js and the scene only load once a drill is opened, so the
+// management screens start fast.
+const loadViewport = () => import('./components/Viewport')
+const Viewport = lazy(() =>
+  loadViewport().then((m) => ({ default: m.Viewport })),
+)
+
+// Warm the scene chunk in the background once the first screen is idle.
+if (typeof window !== 'undefined') {
+  const idle =
+    window.requestIdleCallback ?? ((cb: () => void) => setTimeout(cb, 1500))
+  idle(() => void loadViewport())
+}
 
 /** The pitch simulator. Unchanged by the management screens around it. */
 function DrillSimulator() {
@@ -21,6 +35,8 @@ function DrillSimulator() {
   const setSidebarOpen = useSim((s) => s.setSidebarOpen)
   const backToMenu = useSim((s) => s.backToMenu)
   const [infoOpen, setInfoOpen] = useState(true)
+  // One simulation per drill, shared by the scene and the transport controls.
+  const sim = useMemo(() => new DrillSim(drill), [drill])
 
   return (
     <div className="flex h-full w-full overflow-hidden bg-bg">
@@ -78,11 +94,19 @@ function DrillSimulator() {
 
         <div className="relative min-h-0 flex-1">
           {/* Remounting per drill rebuilds every trajectory table cleanly. */}
-          <Viewport key={drill.id} drill={drill} />
+          <Suspense
+            fallback={
+              <div className="flex h-full items-center justify-center text-xs text-muted">
+                Loading pitch…
+              </div>
+            }
+          >
+            <Viewport key={drill.id} drill={drill} sim={sim} />
+          </Suspense>
           <PhaseCaption drill={drill} />
         </div>
 
-        <Controls drill={drill} />
+        <Controls drill={drill} sim={sim} />
       </main>
 
       <div

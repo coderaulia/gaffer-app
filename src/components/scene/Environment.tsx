@@ -177,7 +177,7 @@ function Stand({
         </mesh>
       ))}
 
-      <Instances limit={seats.length} castShadow>
+      <Instances limit={seats.length} frames={1} castShadow>
         <boxGeometry args={[0.46, 0.44, 0.42]} />
         <meshLambertMaterial color="#2f6fd0" />
         {seats.map((s, i) => (
@@ -302,7 +302,7 @@ function Hoardings() {
   }, [])
 
   return (
-    <Instances limit={boards.length} castShadow>
+    <Instances limit={boards.length} frames={1} castShadow>
       <boxGeometry args={[4, 1, 0.18]} />
       <meshLambertMaterial color="#7fc4e8" />
       {boards.map((b, i) => (
@@ -497,7 +497,7 @@ function CarPark({
       </mesh>
 
       {/* bay markings */}
-      <Instances limit={bays * rows + 4}>
+      <Instances limit={bays * rows + 4} frames={1}>
         <planeGeometry args={[0.16, 5]} />
         <meshBasicMaterial color="#d8dcd6" />
         {Array.from({ length: rows }, (_, r) =>

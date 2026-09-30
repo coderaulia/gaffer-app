@@ -1,6 +1,6 @@
 import type { Drill } from '@/lib/types'
 import { Badge, Card, CardContent, CardHeader, CardTitle } from './ui/card'
-import { TEAM_COLORS } from './scene/Player'
+import { TEAM_COLORS } from '@/lib/teamColors'
 
 const TEAM_LABEL: Record<string, string> = {
   attack: 'Attacking',

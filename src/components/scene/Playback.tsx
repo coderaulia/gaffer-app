@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { useFrame } from '@react-three/fiber'
+import { useFrame, useThree } from '@react-three/fiber'
 import { clock } from '@/lib/clock'
 import { useSim } from '@/lib/store'
 import { useSimulation } from '@/lib/simContext'
@@ -15,18 +15,32 @@ const STEP_GRACE = 0.05
 export function Playback() {
   const sim = useSimulation()
   const duration = sim.duration
-  const publish = useSim((s) => s.publishTime)
+  const publishTime = useSim((s) => s.publishTime)
+  const published = useRef(-1)
+  const publish = (t: number) => {
+    published.current = t
+    publishTime(t)
+  }
   const pause = useSim((s) => s.pause)
   const acc = useRef(0)
   const lastStop = useRef(-1)
+  const invalidate = useThree((s) => s.invalidate)
+
+  // The canvas renders on demand; wake the loop whenever playback starts.
+  const playing = useSim((s) => s.playing)
+  useEffect(() => {
+    if (playing) invalidate()
+  }, [playing, invalidate])
 
   const seekToken = useSim((s) => s.seekToken)
   useEffect(() => {
     clock.t = useSim.getState().time
+    published.current = clock.t
     clock.duration = duration
     lastStop.current = -1
     sim.update(clock.t)
-  }, [seekToken, duration, sim])
+    invalidate()
+  }, [seekToken, duration, sim, invalidate])
 
   useFrame((_, delta) => {
     const { playing, speed, loop, stepMode } = useSim.getState()
@@ -69,6 +83,11 @@ export function Playback() {
       acc.current = 0
       publish(clock.t)
     }
+
+    // Keep the loop alive only while there is motion to show.
+    // On stopping, publish the exact resting time so the scrubber agrees.
+    if (useSim.getState().playing) invalidate()
+    else if (published.current !== clock.t) publish(clock.t)
   })
 
   return null

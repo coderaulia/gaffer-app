@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo } from 'react'
+﻿import { useEffect } from 'react'
 import {
   ChevronLeft,
   ChevronRight,
@@ -12,7 +12,7 @@ import {
   Video,
 } from 'lucide-react'
 import type { Drill } from '@/lib/types'
-import { DrillSim } from '@/lib/sim'
+import type { DrillSim } from '@/lib/sim'
 import { useSim, type CameraPreset, type SpeedLevel } from '@/lib/store'
 import { Button } from './ui/button'
 import { Slider } from './ui/slider'
@@ -33,34 +33,54 @@ const CAMERAS: { value: CameraPreset; label: string }[] = [
   { value: 'board', label: 'Board' },
 ]
 
-export function Controls({ drill }: { drill: Drill }) {
-  const {
-    playing,
-    toggle,
-    speed,
-    setSpeed,
-    loop,
-    setLoop,
-    camera,
-    setCamera,
-    time,
-    seek,
-    showLabels,
-    setShowLabels,
-    showTrails,
-    setShowTrails,
-    showArrows,
-    setShowArrows,
-    stepMode,
-    setStepMode,
-  } = useSim()
+/**
+ * Timecode and scrub bar — the only part of the controls that follows the
+ * playhead, so only it re-renders as the scene publishes the clock.
+ */
+function Timeline({ duration }: { duration: number }) {
+  const time = useSim((s) => s.time)
+  const seek = useSim((s) => s.seek)
+  return (
+    <>
+      <span className="w-20 shrink-0 font-mono text-xs text-muted tabular-nums">
+        {formatTime(time)} / {formatTime(duration)}
+      </span>
+
+      <Slider
+        value={[Math.min(time, duration)]}
+        min={0}
+        max={duration}
+        step={0.02}
+        onValueChange={([v]) => seek(v)}
+        aria-label="Scrub timeline"
+        className="flex-1"
+      />
+    </>
+  )
+}
+
+export function Controls({ drill, sim }: { drill: Drill; sim: DrillSim }) {
+  const playing = useSim((s) => s.playing)
+  const toggle = useSim((s) => s.toggle)
+  const speed = useSim((s) => s.speed)
+  const setSpeed = useSim((s) => s.setSpeed)
+  const loop = useSim((s) => s.loop)
+  const setLoop = useSim((s) => s.setLoop)
+  const camera = useSim((s) => s.camera)
+  const setCamera = useSim((s) => s.setCamera)
+  const seek = useSim((s) => s.seek)
+  const showLabels = useSim((s) => s.showLabels)
+  const setShowLabels = useSim((s) => s.setShowLabels)
+  const showTrails = useSim((s) => s.showTrails)
+  const setShowTrails = useSim((s) => s.setShowTrails)
+  const showArrows = useSim((s) => s.showArrows)
+  const setShowArrows = useSim((s) => s.setShowArrows)
+  const stepMode = useSim((s) => s.stepMode)
+  const setStepMode = useSim((s) => s.setStepMode)
 
   // Deliveries and the true playback length both come from the retimed
   // simulation, so the slider matches what the scene is actually doing.
-  const { passes, duration } = useMemo(() => {
-    const sim = new DrillSim(drill)
-    return { passes: sim.passes, duration: sim.duration }
-  }, [drill])
+  const { passes, duration } = sim
 
   const jumpPass = (dir: 1 | -1) => {
     const t = useSim.getState().time
@@ -162,19 +182,7 @@ export function Controls({ drill }: { drill: Drill }) {
           <RotateCcw className="h-4 w-4" />
         </Button>
 
-        <span className="w-20 shrink-0 font-mono text-xs text-muted tabular-nums">
-          {formatTime(time)} / {formatTime(duration)}
-        </span>
-
-        <Slider
-          value={[Math.min(time, duration)]}
-          min={0}
-          max={duration}
-          step={0.02}
-          onValueChange={([v]) => seek(v)}
-          aria-label="Scrub timeline"
-          className="flex-1"
-        />
+        <Timeline duration={duration} />
 
         <Button
           variant="ghost"

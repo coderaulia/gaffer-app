@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { Line } from '@react-three/drei'
 import type { DrillPlayer } from '@/lib/types'
 import { useSimulation } from '@/lib/simContext'
-import { TEAM_COLORS } from './Player'
+import { TEAM_COLORS } from '@/lib/teamColors'
 
 /** Sample the smoothed trajectory so the trail matches the actual motion. */
 function tableToPoints(xs: Float32Array, zs: Float32Array, stride: number) {

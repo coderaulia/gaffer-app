@@ -54,6 +54,7 @@ function shotFor(preset: CameraPreset, view: PitchView): Shot {
 export function CameraRig({ drill }: { drill: Drill }) {
   const controls = useRef<OrbitControlsImpl>(null)
   const camera = useThree((s) => s.camera)
+  const invalidate = useThree((s) => s.invalidate)
   const preset = useSim((s) => s.camera)
 
   const from = useRef(new THREE.Vector3())
@@ -72,15 +73,22 @@ export function CameraRig({ drill }: { drill: Drill }) {
     to.current.copy(shot.pos)
     toTarget.current.copy(shot.target)
     k.current = 0
-  }, [preset, drill.view, drill.id, camera])
+    invalidate()
+  }, [preset, drill.view, drill.id, camera, invalidate])
 
   useFrame((_, delta) => {
-    if (k.current >= 1 || !controls.current) return
+    if (k.current >= 1) return
+    if (!controls.current) {
+      invalidate()
+      return
+    }
     k.current = Math.min(1, k.current + delta / 0.9)
     const e = k.current * k.current * (3 - 2 * k.current)
     camera.position.lerpVectors(from.current, to.current, e)
     controls.current.target.lerpVectors(fromTarget.current, toTarget.current, e)
     controls.current.update()
+    // The canvas renders on demand; keep frames coming until the move lands.
+    invalidate()
   })
 
   return (
